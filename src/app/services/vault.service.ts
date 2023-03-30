@@ -7,6 +7,7 @@ import {
 } from '@ionic-enterprise/identity-vault';
 import { AuthenticationService } from './authentication.service';
 import { RouteService } from './route.service';
+import { Vault2 } from '../vault';
 
 @Injectable({
     providedIn: 'root'
@@ -22,7 +23,7 @@ export class VaultService {
         unlockVaultOnLoad: false,
     };
 
-    vault: Vault | BrowserVault;
+    vault: Vault2 | BrowserVault;
 
     constructor(private routeService: RouteService) {
     }
@@ -30,6 +31,7 @@ export class VaultService {
     public async init() {
         if (Capacitor.getPlatform() === 'web') {
             this.vault = new BrowserVault(this.config);
+            return;
         } else {
             if (!await this.hasBiometrics()) {
                 this.config = {
@@ -39,8 +41,12 @@ export class VaultService {
                     deviceSecurityType: DeviceSecurityType.None
                 };
             }
-            this.vault = new Vault(this.config);
+            this.vault = new Vault2();
         }
+
+        await this.vault.createVault(
+            this.config
+        );
 
         this.vault.onConfigChanged(() => {
             console.log('Vault configuration was changed', this.config);
