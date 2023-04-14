@@ -1,13 +1,15 @@
-# App Summit
+# Conference App
 
-This is a sample application demonstrating the combination of Auth Connect and Identity Vault in a real world application that is designed to run on iOS, Android and web.
+This is a sample application demonstrating the combination of Auth Connect, Identity Vault and Secure Storage in a real world application that is designed to run on iOS, Android and web.
 
 ## TLDR
 
 If you like the way authentication is handled in this app and would like to copy paste your way to freedom:
 - [authentication.service.ts](src/app/services/authentication.service.ts) - Setup of Ionic Auth Connect with an authentication provider
 - [vault.service.ts](src/app/services/vault.service.ts) - Setup of Ionic Identity Vault to support secure encryption of the auth token using biometrics
-- [auth-guard.service.ts](src/app/services/auth-guard.service.ts) - The Angular service to check authentication when routing to a page
+- [auth-guard.service.ts](src/app/services/auth-guard.service.ts) - Checks authentication when routing to a page
+- [key.service.ts](src/app/services/key.service.ts) - Stores a unique ID which is used to encrypt our Secure Storage
+- [api.service.ts](src/app/services/api.service.ts) - Gets responses from our API and caches results in Secure Storage
 - [app-routing.module.ts](src/app/app-routing.module.ts) - The configuration of which routes are protected by the auth guard
 - [app.component.ts](src/app/app.component.ts) - Authentication is checked on startup and resume
 - [app.module.ts](src/app/app.module.ts) - Demonstrates initialization of the Vault before anything else can use the token
