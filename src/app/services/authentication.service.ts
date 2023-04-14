@@ -4,43 +4,62 @@ import { Platform } from '@ionic/angular';
 import { nativeIonicAuthOptions, webIonicAuthOptions } from '../../environments/environment';
 import { RouteService } from './route.service';
 import { VaultService } from './vault.service';
+import { checkAuthResult } from './util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthenticationService {
-  private provider: AzureProvider;
   private result: AuthResult | undefined;
-  private options: ProviderOptions;
 
   constructor(
     private platform: Platform,
     private routeService: RouteService,
     private vaultService: VaultService) {
-    this.options = this.platform.is('hybrid') ? nativeIonicAuthOptions : webIonicAuthOptions;
-    this.provider = new AzureProvider();
     this.init();
   }
 
+  /**
+   * Initialize: setup Auth Connect, and get token from storage if available
+   */
   public async init() {
     await AuthConnect.setup({
       platform: this.platform.is('hybrid') ? 'capacitor' : 'web',
-      logLevel: 'DEBUG',
+      logLevel: 'ERROR',
       ios: {
         webView: 'private',
-        safariWebViewOptions: { dismissButtonStyle: 'close', preferredBarTintColor: '#FFFFFF', preferredControlTintColor: '#333333' }
+        safariWebViewOptions: { 
+          dismissButtonStyle: 'close', 
+          preferredBarTintColor: '#FFFFFF', 
+          preferredControlTintColor: '#333333' }
       },
-      android: { isAnimated: false, showDefaultShareMenuItem: false },
-      web: { uiMode: 'current', authFlow: 'PKCE' }
+      android: { 
+        isAnimated: false, 
+        showDefaultShareMenuItem: false },
+      web: { 
+        uiMode: 'current', 
+        authFlow: 'PKCE' }
     });
+
+    try {
+      this.result = await this.vaultService.get();
+    } catch (error) {
+      console.error(error);
+      this.result = undefined;
+    }
   }
 
+  /**
+   * Login
+   */
   public async login() {
-    this.result = await AuthConnect.login(this.provider, this.options);
+    this.result = await AuthConnect.login(this.azureB2CProvider(), this.getAuthOptions());
     await this.vaultService.set(this.result);
     this.routeService.goToRoot();
   }
 
-  // This is call for web and takes the auth info from query parameters and gives it to auth connect to handle
-  // We then store the token and redirect to the main page
+  /**
+   * Called for the web platform. Passes Auth Connect the auto info from query parameters
+   * to get the auth object which we store and redirect to the home page
+   */
   public async handleLogin() {
     const urlParams = new URLSearchParams(window.location.search);
     this.result = await AuthConnect.handleLoginCallback({ code: urlParams.get('code')!, state: urlParams.get('state')! });
@@ -48,38 +67,18 @@ export class AuthenticationService {
     this.routeService.goToRoot();
   }
 
-  public async logout(): Promise<void> {
-    if (!this.provider) {
-      console.error(`provider is empty`);
-    }
-    if (!this.result) {
-      console.error(`authResult is empty`);
-    }
-    
-    // Hack
-    if (this.result.provider == undefined) {
-      this.result.provider = {
-        options: webIonicAuthOptions,
-        config: undefined, 
-        authorizeUrl: undefined,
-        manifest: await AuthConnect.fetchManifest(webIonicAuthOptions.discoveryUrl)
-      };
-    }
-    
+  /**
+   * Logout
+   */
+  public async logout() {
+    await checkAuthResult(this.result);
+
     try {
-      await AuthConnect.logout(this.provider, this.result!);
+      await AuthConnect.logout(this.azureB2CProvider(), this.result!);
     } catch (error) {
       console.error('AuthConnect.logout', error);
     }
     this.routeService.returnToLogin();
-  }
-
-  public async getAccessToken(): Promise<string | undefined> {
-    return await AuthConnect.getToken(TokenType.access, this.result!);
-  }
-
-  public decodeToken() {
-    return AuthConnect.decodeToken(TokenType.access, this.result!);
   }
 
   public async isAuthenticated(): Promise<boolean> {
@@ -98,14 +97,30 @@ export class AuthenticationService {
         return true;
       }
 
-      const newAuthResult = await AuthConnect.refreshSession(this.provider, authResult);
+      const newAuthResult = await AuthConnect.refreshSession(this.azureB2CProvider(), authResult);
       await this.vaultService.set(newAuthResult);
       return true;
     } catch (e) {
       console.error(e);
-      await this.vaultService.remove();
+      await this.vaultService.clear();
       return false;
     }
+  }
+
+  public async getAccessToken(): Promise<string | undefined> {
+    return await AuthConnect.getToken(TokenType.access, this.result!);
+  }
+
+  public decodeToken() {
+    return AuthConnect.decodeToken(TokenType.id, this.result!);
+  }
+
+  private azureB2CProvider(): AzureProvider {
+    return new AzureProvider();
+  }
+
+  private getAuthOptions(): ProviderOptions {
+    return this.platform.is('hybrid') ? nativeIonicAuthOptions : webIonicAuthOptions;
   }
 
 }

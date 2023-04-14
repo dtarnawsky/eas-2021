@@ -12,6 +12,9 @@ import { SwagModalPage } from '../../components/swag-modal/swag-modal.page';
 })
 export class ProfilePage implements OnInit {
 
+  public name: string;
+  public id: string;
+
   constructor(public modalController: ModalController,
     private authService: AuthenticationService,
     private vaultService: VaultService,
@@ -22,13 +25,15 @@ export class ProfilePage implements OnInit {
 
   async ionViewDidEnter() {
     const token = await this.authService.getAccessToken();
-    console.log(this.authService.decodeToken());
+    const data: any = await this.authService.decodeToken();
+    this.name = `${data.given_name} ${data.family_name}`;
+    this.id = data.sub;
+    console.log(data);
   }
 
   async openSwagModal() {
     const modal: HTMLIonModalElement = await this.modalController.create({
       component: SwagModalPage,
-      swipeToClose: true,
       presentingElement: this.routerOutlet.nativeEl,
       componentProps: {}
     });

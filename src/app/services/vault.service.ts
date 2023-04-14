@@ -27,10 +27,14 @@ export class VaultService {
     constructor(private routeService: RouteService) {
     }
 
+    /**
+     * Init is called by our APP_INITIALIZER at the startup of the application
+     */
     public async init() {
         if (Capacitor.getPlatform() === 'web') {
             this.vault = new BrowserVault(this.config);
         } else {
+            // If the device doesnt have biometrics the we'll use a Secure Storage Vault
             if (!await this.hasBiometrics()) {
                 this.config = {
                     ...this.config,
@@ -62,7 +66,7 @@ export class VaultService {
         });
 
         // If you would like the privacy screen set to true
-        await Device.setHideScreenOnBackground(false);
+        await Device.setHideScreenOnBackground(true);
     }
 
     public async clear() {
@@ -77,10 +81,6 @@ export class VaultService {
         const value = await this.vault.getValue('auth');
         if (value == null) return undefined;
         return JSON.parse(value);
-    }
-
-    public async remove(): Promise<void> {
-        return await this.vault.removeValue('auth');
     }
 
     private async hasBiometrics(): Promise<boolean> {
